@@ -1,3 +1,4 @@
+import os
 from bson import ObjectId
 
 from export_util import Exporter
@@ -372,6 +373,41 @@ data = [{
 }]
 
 
+
+class BmatTemplate:
+    template_file = os.path.join(
+        os.path.dirname(__file__),
+        'demo_resources',
+        'tpl.xlsx'
+    )
+
+    images_positions = {
+        "A1": {
+            "name": os.path.join(
+                        os.path.dirname(__file__),
+                        'demo_resources',
+                        'logo.png'
+            ),
+            "size": (300, None)
+        }
+    }
+
+    worksheet_index = 0
+    table_start = 'A7'
+    # table_fields = BmatFields._fields
+
+    # other_fields_positions = BmatOtherFields(
+    #     title='B1',
+    #     type='C2',
+    #     air_date='C3',
+    #     company='C4',
+    #     duration='G2',
+    #     network_station='G3',
+    #     created='G4',
+    #     updated='K2'
+    # )._asdict()
+
+
 if __name__ == '__main__':
     ex = Exporter(
         normalizer=Normalizer({
@@ -384,14 +420,9 @@ if __name__ == '__main__':
                 }
             }
         }),
-        output=XLSXBytesOutputWriter(cols_dimensions={
-            'B': 50,
-            'D': 80,
-            'E': 40,
-            'F': 30
-        })
+        output=XLSXBytesOutputWriter(template=BmatTemplate)
     )
 
     with open('demo_result.xlsx', 'wb') as f:
-        filename, mime, data = ex.generate([data])
+        filename, mime, data = ex.generate(data)
         f.write(data)
