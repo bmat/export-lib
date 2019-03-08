@@ -25,7 +25,7 @@ You can provide default one from the .templator and .writer packages.
                     'path': 'title',
 
                     # Optional. Ascending order number of this column.
-                    'position': 0,
+                    'col': 0,
 
                     # Optional. Default value if the value is unavailable
                     # in source object.
@@ -34,7 +34,7 @@ You can provide default one from the .templator and .writer packages.
                 },
                 'Description: {
                     'path': 'some_obj_property.description',
-                    'position': 1,
+                    'col': 1,
                     'default': '---'
                 }
             }),
@@ -86,7 +86,7 @@ Example:
         'Description: {
         
             'path': 'some_obj_property.description',
-            'position': 1,
+            'col': 1,
             'default': '---'
             
         },
