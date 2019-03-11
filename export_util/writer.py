@@ -1,8 +1,9 @@
 from io import BytesIO
 from zipfile import ZipFile, ZIP_DEFLATED
 
-from openpyxl import Workbook, load_workbook
+import openpyxl
 from openpyxl.writer.excel import ExcelWriter
+from openpyxl import Workbook, load_workbook
 
 
 class BytesOutputWriter:
@@ -64,10 +65,23 @@ class XLSXBytesOutputWriter(BytesOutputWriter):
                 self.ws.column_dimensions[col].height = height
 
     def from_template(self, template=None):
+        if template.worksheet_index is not None:
+            self.ws = self.wb.worksheets[template.worksheet_index]
+
         col, row = tuple(template.table_start)
 
         self.start_col = self.COLINT_MAP.get(col)
         self.start_row = int(row)
+
+        if template.images_positions:
+            for cell, image in template.images_positions.items():
+                xlimg = openpyxl.drawing.image.Image(image['name'])
+                if image['size']:
+                    if image['size'][0]:
+                        xlimg.width = image['size'][0]
+                    if image['size'][1]:
+                        xlimg.height = image['size'][1]
+                self.ws.add_image(xlimg, cell)
 
     def write(self, *cols):
         for i, val in enumerate(cols):
@@ -78,9 +92,6 @@ class XLSXBytesOutputWriter(BytesOutputWriter):
 
         self._current_row += 1
 
-    def _get_cell_path(self, col_number):
-        return '{}{}'.format(self.INTCOL_MAP.get(col_number + self.start_col), self._current_row + self.start_row)
-
     def get_data(self):
         archive = ZipFile(self.output, 'w', ZIP_DEFLATED, allowZip64=True)
         writer = ExcelWriter(self.wb, archive)
@@ -90,6 +101,12 @@ class XLSXBytesOutputWriter(BytesOutputWriter):
             archive.close()
 
         return self.output.getvalue()
+
+    def _get_column_name(self, cell_name):
+        return cell_name[0]
+
+    def _get_cell_path(self, col_number):
+        return '{}{}'.format(self.INTCOL_MAP.get(col_number + self.start_col), self._current_row + self.start_row)
 
 
 __all__ = ['BytesOutputWriter', 'XLSXBytesOutputWriter']
