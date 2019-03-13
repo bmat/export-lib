@@ -1,7 +1,6 @@
 import os
 import json
 import time
-import datetime
 
 from export_util import Exporter
 from export_util.writer import XLSXBytesOutputWriter
@@ -64,74 +63,6 @@ def verbose_list(list_objects, object_source):
 
 
 if __name__ == '__main__':
-
-    # ex = Exporter(
-    #     normalizer=Normalizer({
-    #         # Object start
-    #         'Production ID': {'path': '_id.$oid', 'col': 1},
-    #         'Source': {'path': 'cuesheet_channel', 'col': 2},
-    #         'Duration': {'path': 'cuesheet_start_time.$date', 'col': 3, 'preformat': create_duration},
-    #         'Year': {'path': 'updated_at.$date', 'col': 4, 'preformat': get_year_from_timestamp},
-    #         'Free Music': {'path': 'free_music', 'col': 5, 'preformat': verbose_boolean},
-    #         'Title': {'path': 'category.other_production.original_title', 'col': 6},
-    #         'Gema AVR': {'path': 'cuesheet_progress', 'col': 6},
-    #         'Country': {'path': 'production_country', 'col': 8, 'preformat': verbose_list},
-    #
-    #         # Nested objects
-    #         'nested': {
-    #             # Describe specific behaviour of this nested field
-    #             '__meta': {
-    #                 # Skip few rows before nested table
-    #                 'margin': 5,
-    #
-    #                 # Enable headers
-    #                 'headers': True,
-    #             },
-    #
-    #             # Nested cues
-    #             'cuesheet.cues': {
-    #                 'Start Time': {'path': 'start_time', 'col': 1},
-    #                 'Work ID': {'path': 'work_id', 'col': 2},
-    #                 'Length': {'path': 'length', 'col': 3},
-    #                 'Music Type': {'path': 'music_type', 'col': 4},
-    #                 'Use': {'path': 'use', 'col': 4},
-    #                 'Music Title': {'path': 'music_work.music_title', 'col': 5},
-    #                 'Origin': {'path': 'music_work.origin', 'col': 6},
-    #
-    #                 # I have added one more space to avoid keys duplicate
-    #                 'Work ID ': {'path': 'music_work.work_id.mpn_id', 'col': 7},
-    #                 ' ': {'path': 'music_work.work_id.iswc', 'col': 8},
-    #
-    #                 # Render nested lists
-    #                 'nested': {
-    #                     # Describe specific behaviour of this nested field
-    #                     '__meta': {
-    #                         # Skip few rows before nested table
-    #                         'margin': 5,
-    #
-    #                         # Enable headers
-    #                         'headers': True,
-    #                     },
-    #
-    #                     'music_work.author': {
-    #                         'Name': {'path': 'name', 'col': 9+1},
-    #                         'Rolle': {'path': 'rolle', 'col': 10+1}
-    #                     },
-    #                     'music_work.publisher': {
-    #                         'Name': {'path': 'name', 'col': 11+1},
-    #                         'Rolle': {'path': 'rolle', 'col': 12+1},
-    #                     },
-    #                     'music_work.interpreter': {
-    #                         'Name': {'path': 'name', 'col': 13+1},
-    #                         'Rolle': {'path': 'rolle', 'col': 14+1},
-    #                     },
-    #                 },
-    #             }
-    #         }
-    #     }),
-    #     output=XLSXBytesOutputWriter()
-    # )
-
     ex = Exporter(
         normalizer=Normalizer(tpl.Object(col=1, titles=True, fields=[
             tpl.Field(1, 'Production ID', '_id.$oid'),
