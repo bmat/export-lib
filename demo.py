@@ -70,7 +70,7 @@ if __name__ == '__main__':
             tpl.Field(3, 'Duration', 'cuesheet_start_time.$date', create_duration),
             tpl.Field(4, 'Year', 'updated_at.$date', get_year_from_timestamp),
             tpl.Field(5, 'Free Music', 'free_music', verbose_boolean),
-            tpl.Field(6, 'Title', 'category.other_production.original_title', verbose_boolean),
+            tpl.Field(6, 'Title', 'category.other_production.original_title'),
             tpl.Field(7, 'Gema AVR', 'cuesheet_progress'),
             tpl.Field(8, 'Country', 'production_country', verbose_list),
             tpl.Object(
