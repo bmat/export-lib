@@ -32,17 +32,21 @@ class XLSXBytesOutputWriter(BytesOutputWriter):
     mime_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.template'
     extension = 'xlsx'
 
-    INTCOL_MAP = {i+1: c for i, c in enumerate(list('ABCDEFGHIJKLMNOPQRSTUVWXYZ'))}
-    COLINT_MAP = {c: i+1 for i, c in enumerate(list('ABCDEFGHIJKLMNOPQRSTUVWXYZ'))}
+    INTCOL_MAP = {i: c for i, c in enumerate(list('ABCDEFGHIJKLMNOPQRSTUVWXYZ'))}
+    COLINT_MAP = {c: i for i, c in enumerate(list('ABCDEFGHIJKLMNOPQRSTUVWXYZ'))}
 
     def __init__(self, cols_dimensions=None, template=None):
         super(XLSXBytesOutputWriter, self).__init__()
-        self.start_col = 1
-        self.start_row = 1
+        self.start_col = 0
+        self.start_row = 0
         self._current_row = 0
 
         if template is not None:
-            self.wb = load_workbook(filename=template.template_file, keep_vba=True)
+            if hasattr(template, 'template_file'):
+                self.wb = load_workbook(filename=template.template_file, keep_vba=True)
+            else:
+                self.wb = Workbook()
+
             self.ws = self.wb.active
             self.from_template(template)
         else:
@@ -65,15 +69,15 @@ class XLSXBytesOutputWriter(BytesOutputWriter):
                 self.ws.column_dimensions[col].height = height
 
     def from_template(self, template=None):
-        if template.worksheet_index is not None:
+        if hasattr(template, 'worksheet_index') and template.worksheet_index is not None:
             self.ws = self.wb.worksheets[template.worksheet_index]
 
-        col, row = tuple(template.table_start)
+        if hasattr(template, 'table_start') and template.table_start is not None:
+            col, row = tuple(template.table_start)
+            self.start_col = self.COLINT_MAP.get(col)
+            self.start_row = int(row) - 1
 
-        self.start_col = self.COLINT_MAP.get(col)
-        self.start_row = int(row)
-
-        if template.images_positions:
+        if hasattr(template, 'images_positions'):
             for cell, image in template.images_positions.items():
                 xlimg = openpyxl.drawing.image.Image(image['name'])
                 if image['size']:
@@ -88,7 +92,10 @@ class XLSXBytesOutputWriter(BytesOutputWriter):
             if not val:
                 continue
 
-            self.ws[self._get_cell_path(i)] = val
+            try:
+                self.ws.cell(row=self._current_row + self.start_row + 1, column=i+1, value=val)
+            except Exception as e:
+                print(e)
 
         self._current_row += 1
 
@@ -104,9 +111,6 @@ class XLSXBytesOutputWriter(BytesOutputWriter):
 
     def _get_column_name(self, cell_name):
         return cell_name[0]
-
-    def _get_cell_path(self, col_number):
-        return '{}{}'.format(self.INTCOL_MAP.get(col_number + self.start_col), self._current_row + self.start_row)
 
 
 __all__ = ['BytesOutputWriter', 'XLSXBytesOutputWriter']

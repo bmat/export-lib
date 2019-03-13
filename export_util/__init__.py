@@ -34,7 +34,7 @@ class Exporter:
                 }
             }),
 
-            output=writer.XLSXBytesColsWriter()
+            output=writer.XLSXBytesOutputWriter()
         )
 
         # Then get output bytes
@@ -43,8 +43,8 @@ class Exporter:
     """
     def __init__(self, normalizer, output):
         """
-        :param normalizer:
-        :param output:
+        :param export_util.normalize.Normalizer normalizer:
+        :param export_util.writer.BytesOutputWriter output:
         """
         self.normal = normalizer
         self.output = output
@@ -98,9 +98,8 @@ class Exporter:
         :param data:
         :return generator:
         """
-        yield self.normal.get_headers()
         for row in data:
-            for r in self.normal.normalize_row(row):
+            for r in self.normal.build_table(row):
                 yield r
 
 
