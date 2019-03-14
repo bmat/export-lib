@@ -340,11 +340,11 @@ class Object:
 
         # Render nested table
         for child in self.sorted_nested:
-                for row in child.render(obj):
-                    if self.fold_nested is True:
-                        ns.add(row)
-                    else:
-                        yield self._set_offset_row(row)
+            for row in child.render(obj):
+                if self.fold_nested is True:
+                    ns.add(row)
+                else:
+                    yield self._set_offset_row(row)
 
         # Throw nested rows if exists
         if self.fold_nested is True:
