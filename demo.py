@@ -79,6 +79,7 @@ if __name__ == '__main__':
                 verbose_name='Cuesheets',
                 path='cuesheet.cues',
                 titles=True,
+                # title_each=True,
                 fold_nested=True,
                 offset_item=1,
                 fields=[
@@ -89,10 +90,14 @@ if __name__ == '__main__':
                     tpl.Field(5, 'Use', 'use'),
                     tpl.Field(6, 'Music Title', 'music_work.music_title'),
                     tpl.Field(7, 'Origin', 'music_work.origin'),
-                    tpl.Field(8, 'Work ID', 'music_work.work_id.mpn_id'),
-                    tpl.Field(9, 'Work ID Type', 'music_work.work_id.iswc'),
+                    tpl.Field(8, 'Label', 'music_work.sound_recording_id.label'),
+                    tpl.Field(9, 'Label Code', 'music_work.sound_recording_id.label_code'),
+                    tpl.Field(10, 'EAN UPC', 'music_work.sound_recording_id.ean_upc'),
+                    tpl.Field(11, 'ISRC', 'music_work.sound_recording_id.isrc'),
+                    tpl.Field(12, 'Work ID', 'music_work.work_id.mpn_id'),
+                    tpl.Field(13, 'Work ID Type', 'music_work.work_id.iswc'),
                     tpl.Object(
-                        col=10,
+                        col=14,
                         verbose_name='Authors',
                         path='music_work.author',
                         inline=True,
@@ -103,7 +108,7 @@ if __name__ == '__main__':
                         ]
                     ),
                     tpl.Object(
-                        col=12,
+                        col=16,
                         verbose_name='Publishers',
                         path='music_work.publisher',
                         inline=True,
@@ -114,7 +119,7 @@ if __name__ == '__main__':
                         ]
                     ),
                     tpl.Object(
-                        col=14,
+                        col=18,
                         verbose_name='Interpreters',
                         path='music_work.interpreter',
                         inline=True,
@@ -138,11 +143,13 @@ if __name__ == '__main__':
             'H': 30.7,
             'I': 14.72,
             'J': 29.45,
-            'K': 8.67,
-            'L': 28.76,
-            'M': 8.67,
+            'K': 29.45,
+            'L': 29.00,
+            'M': 14.72,
             'N': 29.03,
-            'O': 8.67
+            'O': 8.67,
+            'P': 29.03,
+            'R': 29.03
         })
     )
 

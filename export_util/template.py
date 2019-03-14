@@ -266,6 +266,10 @@ class Object:
         if 'inline' in options:
             self.inline = bool(options.pop('inline'))
 
+        self.each_title = False
+        if 'title_each' in options:
+            self.each_title = bool(options.pop('title_each'))
+
     def __str__(self):
         return 'Object("{}", fields={})'.format(self.verbose_name or 'ROOT', ', '.join([str(x) for x in self.sorted_items]))
 
@@ -329,7 +333,7 @@ class Object:
         
         # Render header if needs
         if self.render_titles and not self._renderred_titles:
-            self._renderred_titles = True
+            self._renderred_titles = not self.each_title
             yield self._set_offset_row(self._render_titles())
             
         # Render row

@@ -37,6 +37,7 @@ Template object description.
 |titles|No|False|Is there should be rendered titles of this table|
 |fold_nested|No|False|Folds more than one nested objects into single table instead of "stair" rendering|
 |inline|No|False|If `True` - renders child objects verbose name in the related cell.|
+|title_each|No|False|If `True` - titles would be rendered for each object row.|
 
 
 
