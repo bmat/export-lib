@@ -48,7 +48,7 @@ Folds rows which are not overlaps. By rows I mean arrays of strings which are re
 It's hard to explain, better take a look at the example.
 
 
-Example:
+**Example**:
 
 
     ns = NestedSet()
@@ -77,7 +77,7 @@ export_util.template.DataGetter()
 
 Allows to get value of infinite nested objects. 
 
-Example:
+**Example**:
 
     dg = DataGetter({'a': {'b': {'c': 1}}})
     print(dg.get('a.b.c'))
@@ -92,7 +92,7 @@ This tool requires data normalizer and the output handler.
 
 You can provide default one from the .templator and .writer packages.
 
-    Example:
+**Example**:
 
         ex = Exporter(
             normalizer=normalize.Normalizer({
