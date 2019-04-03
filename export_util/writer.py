@@ -6,6 +6,54 @@ from openpyxl.writer.excel import ExcelWriter
 from openpyxl import Workbook, load_workbook
 
 
+class OutputTemplate:
+    """
+    This is the base class for the output writer
+    template. You can extend this class to define
+    your own template for the result document.
+    """
+
+    # Source template file path. This file will be used as the base file where
+    # the formatted date will be written.
+    template_file = None
+
+    # Active worksheet index. You can select which worksheet will be used to
+    # write formatted data.
+    worksheet_index = 0
+
+    # First cell from which table will be started to render.
+    table_start = 'A1'
+
+    # List of dicts which are describes images, which should be drawn to the sheet.
+    # Use `image()` method to simplify listing process.
+    images = []
+
+    @staticmethod
+    def image(cell_name, image_path, width=None, height=None):
+        """
+        Helper to simplify images listing for `OutputTemplate.images`
+        :param cell_name:
+        :param image_path:
+        :param width:
+        :param height:
+        :return:
+        """
+        image = {
+            'cell': cell_name,
+            'name': image_path
+        }
+
+        if any([width, height]):
+            image['size'] = {}
+
+            if width is not None:
+                image['size']['width'] = width
+            if height is not None:
+                image['size']['height'] = height
+
+        return image
+
+
 class BytesOutputWriter:
     """
     Simple data writer.
@@ -42,7 +90,7 @@ class XLSXBytesOutputWriter(BytesOutputWriter):
         self._current_row = 0
 
         if template is not None:
-            if hasattr(template, 'template_file'):
+            if template.template_file is not None:
                 self.wb = load_workbook(filename=template.template_file, keep_vba=True)
             else:
                 self.wb = Workbook()
@@ -69,23 +117,23 @@ class XLSXBytesOutputWriter(BytesOutputWriter):
                 self.ws.column_dimensions[col].height = height
 
     def from_template(self, template=None):
-        if hasattr(template, 'worksheet_index') and template.worksheet_index is not None:
+        if template.worksheet_index is not None:
             self.ws = self.wb.worksheets[template.worksheet_index]
 
-        if hasattr(template, 'table_start') and template.table_start is not None:
+        if template.table_start is not None:
             col, row = tuple(template.table_start)
             self.start_col = self.COLINT_MAP.get(col)
             self.start_row = int(row) - 1
 
-        if hasattr(template, 'images_positions'):
-            for cell, image in template.images_positions.items():
+        if template.images:
+            for image in template.images:
                 xlimg = openpyxl.drawing.image.Image(image['name'])
                 if image['size']:
                     if image['size'][0]:
                         xlimg.width = image['size'][0]
                     if image['size'][1]:
                         xlimg.height = image['size'][1]
-                self.ws.add_image(xlimg, cell)
+                self.ws.add_image(xlimg, image['cell'])
 
     def write(self, *cols):
         for i, val in enumerate(cols):
