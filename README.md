@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.org/bmat/export-lib.svg?branch=master)](https://travis-ci.org/bmat/export-lib)
 Export library
 ==============
 
