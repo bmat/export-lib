@@ -77,7 +77,7 @@ class XLSXBytesOutputWriter(BytesOutputWriter):
     """
     Returns bytes of the XLSX workbook object.
     """
-    mime_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.template'
+    mime_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     extension = 'xlsx'
 
     INTCOL_MAP = {i: c for i, c in enumerate(list('ABCDEFGHIJKLMNOPQRSTUVWXYZ'))}
@@ -91,7 +91,8 @@ class XLSXBytesOutputWriter(BytesOutputWriter):
 
         if template is not None:
             if template.template_file is not None:
-                self.wb = load_workbook(filename=template.template_file, keep_vba=True)
+                # Microsoft excel raises an error when using vba
+                self.wb = load_workbook(filename=template.template_file, keep_vba=False)
             else:
                 self.wb = Workbook()
 
