@@ -6,7 +6,7 @@ with open('requirements.txt') as fp:
 setup(
     name='export-lib',
     packages=find_packages(),
-    version='0.1',
+    version='0.2',
     description='Export data tool',
     author='BMAT Developers',
     url='',
