@@ -9,7 +9,7 @@ from export_util.writer import XLSXBytesOutputWriter, OutputTemplate
 
 
 BASE_DIR = os.path.dirname(__file__)
-RESOURCES = os.path.join(BASE_DIR, 'demo_resources')
+RESOURCES = os.path.join(BASE_DIR, 'resources')
 
 
 class WriterTemplate(OutputTemplate):
