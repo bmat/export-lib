@@ -1,4 +1,6 @@
-from . import template as tpl
+import schematics
+
+from export_util import template as tpl
 
 
 class Normalizer:
@@ -219,20 +221,94 @@ class Normalizer:
     is the whole object `DataGetter`. So you can compute any difficult values which are depends on other object values.
 
     """
-    def __init__(self, template, *args, **kwargs):
+    def __init__(self, template: tpl.Object, *args, **kwargs):
         """
-        :param tpl.Object template:
+        Create normalizer instance.
         """
         self.template = template
 
     def build_table(self, obj):
         """
-        Returns N rows which are representing this object due to provided
+        Returns N rows which are representing this object due to provided.
         template.
-        :param obj:
-        :return:
         """
         yield from self.template.render(obj)
 
 
-__all__ = ['Normalizer']
+class SchematicsNormalizer(Normalizer):
+    """
+    Creates object template from the schematics model.
+    """
+    def __init__(self, model: schematics.Model, *args, **kwargs):
+        """
+        Create objects template from schematics model.
+        """
+        super(SchematicsNormalizer, self).__init__(self._build_template(model), *args, **kwargs)
+
+    def _build_template(self, model: schematics.Model, **kwargs) -> tpl.Object:
+        """
+        Creates object template from model.
+        """
+        col_number = 1
+        template = tpl.Object(**(kwargs or {'titles': True}))
+
+        for field_name, field_model in model.fields.items():
+            template.add_field(
+                field=self._create_field_template(
+                    col=col_number,
+                    field=field_model,
+                    parent=kwargs.get('parent'),
+                )
+            )
+            col_number += 1
+
+        return template
+
+    def _create_field_template(self, col, field: schematics.types.BaseType, parent=None):
+        if isinstance(field, schematics.types.ListType):
+            return self._type_related_field(col, field, parent)
+
+        if isinstance(field, schematics.types.ModelType):
+            return self._type_related_field(col, field, parent)
+
+        return self._type_base_field(col, field, parent)
+
+    def _type_base_field(self, col, field: schematics.types.BaseType, parent=None):
+        return tpl.Field(
+            col=col,
+            verbose_name=field.serialized_name,
+            path='.'.join([parent or '', field.name]).strip('.'),
+            preformat=lambda v, o: str(v),
+        )
+
+    def _type_related_list_field(self, col, field: schematics.types.BaseType, parent=None):
+        return self._build_template(
+            col=1,
+            path='.'.join([parent or '', field.name]).strip('.'),
+            model=field.model_class,
+            titles=True,
+            parent=parent,
+            title_each=False,
+            offset_item=1,
+            verbose_name=field.serialized_name
+        )
+
+    def _type_related_field(self, col, field: schematics.types.BaseType, parent=None):
+        return self._build_template(
+            col=1 if field.serialized_name else col,
+            path='.'.join([parent or '', field.name]).strip('.'),
+            model=field.model_class,
+            titles=True,
+            inline=bool(field.serialized_name),
+            parent=parent,
+            title_each=False,
+            offset_item=1,
+            fold_nested=True,
+            verbose_name=field.serialized_name
+        )
+
+
+__all__ = [
+    'Normalizer',
+    'SchematicsNormalizer',
+]

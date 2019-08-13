@@ -11,6 +11,10 @@ setup(
     author='BMAT Developers',
     url='',
     download_url='',
-    classifiers=['Topic :: Adaptive Technologies', 'Topic :: Software Development', 'Topic :: System', 'Topic :: Utilities'],
+    classifiers=[
+        'Topic :: Adaptive Technologies',
+        'Topic :: Software Development',
+        'Topic :: System', 'Topic :: Utilities'
+    ],
     install_requires=install_requires
 )

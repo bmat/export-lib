@@ -1,3 +1,4 @@
+from export_util.utility import cached_property
 
 
 class DataGetter:
@@ -225,9 +226,9 @@ class Field:
 class Object:
     """
     This is the object template which is describes how the object should be
-    renderred at the table.
+    rendered at the table.
     """
-    def __init__(self, col, fields, verbose_name=None, path=None, preformat=None, **options):
+    def __init__(self, col=1, fields=None, verbose_name=None, path=None, preformat=None, **options):
         """
         :param col:
         :param verbose_name:
@@ -236,10 +237,10 @@ class Object:
         :param preformat:
         :param options:
         """
-        self.fields = fields
-        self.verbose_name = verbose_name
         self.column = col
         self.value_path = path
+        self.fields = fields or []
+        self.verbose_name = verbose_name
         self.format = preformat if callable(preformat) else lambda a: a
         self.is_object = True
         
@@ -275,8 +276,16 @@ class Object:
 
     def __repr__(self):
         return str(self)
+
+    def add_field(self, field: Field):
+        """
+        Adds field.
+        :param field:
+        :return:
+        """
+        self.fields.append(field)
     
-    @property
+    @cached_property
     def sorted_items(self):
         """
         Returns sorted fields.
@@ -284,7 +293,7 @@ class Object:
         """
         return sorted(self.fields, key=lambda x: x.column)
 
-    @property
+    @cached_property
     def sorted_fields(self):
         """
         Returns sorted field templates.
@@ -292,7 +301,7 @@ class Object:
         """
         return sorted(filter(lambda y: not y.is_object, self.fields), key=lambda x: x.column)
 
-    @property
+    @cached_property
     def sorted_nested(self):
         """
         Returns sorted nested objects templates.

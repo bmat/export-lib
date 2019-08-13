@@ -153,6 +153,7 @@ class XLSXBytesOutputWriter(BytesOutputWriter):
         writer = ExcelWriter(self.wb, archive)
         try:
             writer.write_data()
+            writer.save()
         finally:
             archive.close()
 
@@ -162,4 +163,8 @@ class XLSXBytesOutputWriter(BytesOutputWriter):
         return cell_name[0]
 
 
-__all__ = ['BytesOutputWriter', 'XLSXBytesOutputWriter']
+__all__ = [
+    'OutputTemplate',
+    'BytesOutputWriter',
+    'XLSXBytesOutputWriter'
+]
