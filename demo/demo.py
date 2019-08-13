@@ -3,13 +3,13 @@ import json
 import time
 
 from export_util import Exporter
-from export_util.writer import XLSXBytesOutputWriter
-from export_util.normalize import Normalizer
 from export_util import template as tpl
+from export_util.normalize import Normalizer
+from export_util.writer import XLSXBytesOutputWriter
 
 
 BASE_DIR = os.path.dirname(__file__)
-RESOURCES = os.path.join(BASE_DIR, 'demo_resources')
+RESOURCES = os.path.join(BASE_DIR, 'resources')
 
 
 def create_duration(start_time, object_source):
