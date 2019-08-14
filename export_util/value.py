@@ -1,6 +1,29 @@
 import time
 
+import schematics
+
 from export_util.template import DataGetter
+
+
+def schema_model_to_dict(value):
+    """
+    Converts schemtics model to dict.
+    :param value:
+    :return:
+    """
+    if isinstance(value, schematics.Model):
+        return value.to_primitive()
+    return value
+
+
+def any_to_string(value, obj: DataGetter = None):
+    """
+    This function converts any value to string.
+    :param value:
+    :param obj:
+    :return:
+    """
+    return str(value)
 
 
 def seconds_to_time(seconds, obj: DataGetter = None):
@@ -82,7 +105,7 @@ def list_dicts_to_string(output_format=None, default='---'):
             return default
         if output_format is None:
             return ', '.join(map(str, list_objects))
-        return ', '.join(map(lambda x: output_format.format(**x), list_objects))
+        return ', '.join(map(lambda x: output_format.format(**schema_model_to_dict(x)), list_objects))
     return _formatter
 
 
@@ -96,7 +119,7 @@ def dict_to_string(output_format=None, default='---'):
             return default
         if output_format is None:
             return str(dict_o)
-        return output_format.format(**dict_o)
+        return output_format.format(**schema_model_to_dict(dict_o))
     return _formatter
 
 

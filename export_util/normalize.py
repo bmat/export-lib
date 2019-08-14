@@ -1,6 +1,9 @@
 import schematics
 
-from export_util import template as tpl
+from export_util import (
+    template as tpl,
+    value as val
+)
 
 
 class Normalizer:
@@ -239,6 +242,18 @@ class SchematicsNormalizer(Normalizer):
     """
     Creates object template from the schematics model.
     """
+    root_object_options = dict(
+        col=1,
+        titles=True,
+        fold_nested=True,
+    )
+
+    nested_object_options = dict(
+        titles=True,
+        inline=True,
+        fold_nested=True,
+    )
+
     def __init__(self, model: schematics.Model, *args, **kwargs):
         """
         Create objects template from schematics model.
@@ -249,63 +264,129 @@ class SchematicsNormalizer(Normalizer):
         """
         Creates object template from model.
         """
-        col_number = 1
-        template = tpl.Object(**(kwargs or {'titles': True}))
+        template = tpl.Object(**(kwargs or self.root_object_options))
 
-        for field_name, field_model in model.fields.items():
+        for field, preformat in self._get_model_renderable_fields(model):
+            options = {}
+            if preformat is not None:
+                options['preformat'] = preformat
+
             template.add_field(
                 field=self._create_field_template(
-                    col=col_number,
-                    field=field_model,
+                    field=field,
                     parent=kwargs.get('parent'),
+                    previous=template.fields[-1] if template.fields else None,
+                    **options
                 )
             )
-            col_number += 1
 
         return template
 
-    def _create_field_template(self, col, field: schematics.types.BaseType, parent=None):
+    def _create_field_template(self, field: schematics.types.BaseType, parent=None, previous=None, **kwargs):
         if isinstance(field, schematics.types.ListType):
-            return self._type_related_field(col, field, parent)
+            return self._type_list_related_field(field, parent, previous, **kwargs)
 
         if isinstance(field, schematics.types.ModelType):
-            return self._type_related_field(col, field, parent)
+            return self._type_related_field(field, parent, previous, **kwargs)
 
-        return self._type_base_field(col, field, parent)
+        return self._type_base_field(field, parent, previous, **kwargs)
 
-    def _type_base_field(self, col, field: schematics.types.BaseType, parent=None):
+    def _type_base_field(self, field: schematics.types.BaseType, parent=None, previous=None, **kwargs):
+        if 'col' in kwargs:
+            column = kwargs.pop('col')
+        else:
+            column = self._get_next_column_number(previous)
+
+        preformat = None
+        if 'preformat' in kwargs:
+            preformat = kwargs.pop('preformat')
+        if preformat is None:
+            preformat = val.any_to_string
+
         return tpl.Field(
-            col=col,
-            verbose_name=field.serialized_name,
-            path='.'.join([parent or '', field.name]).strip('.'),
-            preformat=lambda v, o: str(v),
+            col=column,
+            path=self._get_field_path(parent, field.name),
+            preformat=preformat,
+            verbose_name=self._get_field_verbose_name(field),
+            **kwargs
         )
 
-    def _type_related_list_field(self, col, field: schematics.types.BaseType, parent=None):
-        return self._build_template(
-            col=1,
-            path='.'.join([parent or '', field.name]).strip('.'),
-            model=field.model_class,
-            titles=True,
+    def _type_list_related_field(self, field: schematics.types.BaseType, parent=None, previous=None, **kwargs):
+        if hasattr(field, 'model_class'):
+            return self._type_related_field(field, parent, previous, **kwargs)
+
+        if 'col' in kwargs:
+            column = kwargs.pop('col')
+        else:
+            column = self._get_next_column_number(previous)
+
+        preformat = None
+        if 'preformat' in kwargs:
+            preformat = kwargs.pop('preformat')
+        if preformat is None:
+            preformat = val.any_to_string
+
+        return self._type_base_field(
+            col=column,
+            field=field,
             parent=parent,
-            title_each=False,
-            offset_item=1,
-            verbose_name=field.serialized_name
+            previous=previous,
+            preformat=preformat,
+            **kwargs
         )
 
-    def _type_related_field(self, col, field: schematics.types.BaseType, parent=None):
+    def _type_related_field(self, field: schematics.types.BaseType, parent=None, previous=None, **kwargs):
+        options = kwargs or self._get_model_template_options(field.model_class)
+
+        if 'col' in options:
+            column = options.pop('col')
+        else:
+            column = self._get_next_column_number(previous)
+
         return self._build_template(
-            col=1 if field.serialized_name else col,
-            path='.'.join([parent or '', field.name]).strip('.'),
+            col=column,
+            path=self._get_field_path(parent, field.name),
             model=field.model_class,
-            titles=True,
-            inline=bool(field.serialized_name),
             parent=parent,
-            title_each=False,
-            offset_item=1,
-            fold_nested=True,
-            verbose_name=field.serialized_name
+            verbose_name=self._get_field_verbose_name(field),
+            **options
         )
+
+    def _get_model_template_options(self, model) -> dict:
+        o = self.nested_object_options.copy()
+        o.update({
+            k: v for k, v in model._options
+            if k in tpl.Object.supported_options and v is not None
+        })
+        return dict(filter(lambda x: x[1] is not None, o.items()))
+
+    def _get_model_renderable_fields(self, model: schematics.models.Model):
+        if 'fields' in dict(model._options) and model._options.fields is not None:
+            for k, v in model.fields.items():
+                if k in model._options.fields:
+                    yield model.fields[k], self._get_model_preformat_field(model, k)
+
+        yield from (
+            (v, self._get_model_preformat_field(model, k))
+            for k, v in model.fields.items()
+        )
+
+    def _get_model_preformat_field(self, model: schematics.models.Model, field_name):
+        if 'preformat' in dict(model._options) and model._options.preformat is not None:
+            return model._options.preformat.get(field_name)
+        return None
+
+    def _get_next_column_number(self, previous_field=None):
+        if previous_field is None:
+            return 1
+
+        return previous_field.column + previous_field.length
+
+    def _get_field_verbose_name(self, field):
+        return field.serialized_name or field.name.capitalize()
+
+    def _get_field_path(self, parent, field_name):
+        return '.'.join([parent or '', field_name]).strip('.')
 
 
 __all__ = [

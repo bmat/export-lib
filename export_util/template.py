@@ -189,10 +189,12 @@ class Field:
         self.verbose_name = verbose_name
         self.column = col
         self.value_path = path
-        self.format = preformat if callable(preformat) else lambda a, b: a
+        self.format = preformat if callable(preformat) else (lambda a, b: a)
         self.default = default
         self.is_object = False
         self.inline = True
+
+        self.length = 1
 
     def __str__(self):
         return 'Field("{}", val="{}")'.format(self.verbose_name, self.value_path)
@@ -228,6 +230,12 @@ class Object:
     This is the object template which is describes how the object should be
     rendered at the table.
     """
+    supported_options = {
+        'col', 'fields', 'verbose_name', 'path', 'preformat',
+        'offset_top', 'offset_item', 'titles', 'fold_nested',
+        'inline', 'title_each', 'fields'
+    }
+
     def __init__(self, col=1, fields=None, verbose_name=None, path=None, preformat=None, **options):
         """
         :param col:
@@ -245,17 +253,17 @@ class Object:
         self.is_object = True
         
         self.offset_top = 0
-        self._renderred_offset_top = False
+        self._rendered_offset_top = False
         if 'offset_top' in options:
             self.offset_top = int(options.pop('offset_top'))
 
         self.offset_item = 0
-        self._renderred_offset_item = False
+        self._rendered_offset_item = False
         if 'offset_item' in options:
             self.offset_item = int(options.pop('offset_item'))
         
         self.render_titles = False
-        self._renderred_titles = False
+        self._rendered_titles = False
         if 'titles' in options:
             self.render_titles = bool(options.pop('titles'))
 
@@ -284,8 +292,16 @@ class Object:
         :return:
         """
         self.fields.append(field)
+
+    @property
+    def length(self):
+        """
+        Returns number of columns filled.
+        :return:
+        """
+        return len(self.fields) if self.column > 1 else 0
     
-    @cached_property
+    @property
     def sorted_items(self):
         """
         Returns sorted fields.
@@ -293,7 +309,7 @@ class Object:
         """
         return sorted(self.fields, key=lambda x: x.column)
 
-    @cached_property
+    @property
     def sorted_fields(self):
         """
         Returns sorted field templates.
@@ -301,7 +317,7 @@ class Object:
         """
         return sorted(filter(lambda y: not y.is_object, self.fields), key=lambda x: x.column)
 
-    @cached_property
+    @property
     def sorted_nested(self):
         """
         Returns sorted nested objects templates.
@@ -323,7 +339,7 @@ class Object:
             obj = [obj]
 
         # Render each object
-        self._renderred_titles = False
+        self._rendered_titles = False
         for o in obj:
             for row in self._render(o):
                 yield row
@@ -336,13 +352,13 @@ class Object:
         :return: 
         """
         # Render offset top
-        if self.offset_top > 0 and not self._renderred_offset_top:
-            self._renderred_offset_top = True
+        if self.offset_top > 0 and not self._rendered_offset_top:
+            self._rendered_offset_top = True
             yield from [['']]*self.offset_top
         
         # Render header if needs
-        if self.render_titles and not self._renderred_titles:
-            self._renderred_titles = not self.each_title
+        if self.render_titles and not self._rendered_titles:
+            self._rendered_titles = not self.each_title
             yield self._set_offset_row(self._render_titles())
             
         # Render row
@@ -405,7 +421,7 @@ class Object:
 
     def _render_titles(self):
         """
-        Returns current object fields list.
+        Returns current object fields titles.
         :param: dict obj:
         :return list:
         """
