@@ -12,7 +12,7 @@ def schema_model_to_dict(value):
     :return:
     """
     if isinstance(value, schematics.Model):
-        return value.to_primitive()
+        return dict(value)
     return value
 
 

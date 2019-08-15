@@ -1,3 +1,5 @@
+import collections
+
 import schematics
 
 from export_util import (
@@ -283,10 +285,10 @@ class SchematicsNormalizer(Normalizer):
         return template
 
     def _create_field_template(self, field: schematics.types.BaseType, parent=None, previous=None, **kwargs):
-        if isinstance(field, schematics.types.ListType):
+        if isinstance(field, schematics.types.ListType) and not kwargs.get('preformat'):
             return self._type_list_related_field(field, parent, previous, **kwargs)
 
-        if isinstance(field, schematics.types.ModelType):
+        if isinstance(field, schematics.types.ModelType) and not kwargs.get('preformat'):
             return self._type_related_field(field, parent, previous, **kwargs)
 
         return self._type_base_field(field, parent, previous, **kwargs)
@@ -362,9 +364,31 @@ class SchematicsNormalizer(Normalizer):
 
     def _get_model_renderable_fields(self, model: schematics.models.Model):
         if 'fields' in dict(model._options) and model._options.fields is not None:
-            for k, v in model.fields.items():
-                if k in model._options.fields:
-                    yield model.fields[k], self._get_model_preformat_field(model, k)
+            for field_name in model._options.fields:
+                # Get model field
+                if field_name in model.fields:
+                    yield model.fields[field_name], self._get_model_preformat_field(model, field_name)
+                    continue
+
+                # Get custom report field
+                getter = f'get_{field_name}'
+                if not hasattr(model, getter):
+                    raise NotImplementedError(f'{model.__name__}.{getter} is not implemented')
+
+                getter = getattr(model, getter)
+                getter.name = field_name
+                getter.serialized_name = field_name.replace('_', ' ').capitalize()
+
+                # Define preformatters and prepend getter
+                preformatters = self._get_model_preformat_field(model, field_name)
+                if not preformatters:
+                    preformatters = [getter]
+                elif isinstance(preformatters, collections.Iterable):
+                    preformatters = [getter] + list(preformatters)
+                elif callable(preformatters):
+                    preformatters = [getter, preformatters]
+                yield getter, preformatters
+            return
 
         yield from (
             (v, self._get_model_preformat_field(model, k))
@@ -373,7 +397,21 @@ class SchematicsNormalizer(Normalizer):
 
     def _get_model_preformat_field(self, model: schematics.models.Model, field_name):
         if 'preformat' in dict(model._options) and model._options.preformat is not None:
-            return model._options.preformat.get(field_name)
+            source_formatters = model._options.preformat.get(field_name)
+            if callable(source_formatters) or not source_formatters:
+                return source_formatters
+
+            callable_formatters = []
+            if isinstance(source_formatters, collections.Iterable):
+                for formatter in source_formatters:
+                    if isinstance(formatter, str):
+                        callable_formatters.append(getattr(model, formatter))
+                    elif callable(formatter):
+                        callable_formatters.append(formatter)
+                    else:
+                        raise TypeError(f'{field_name} formatter must be callable or iterable of callable')
+                return callable_formatters
+
         return None
 
     def _get_next_column_number(self, previous_field=None):

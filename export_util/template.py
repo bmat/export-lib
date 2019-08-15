@@ -1,3 +1,5 @@
+import collections
+
 from export_util.utility import cached_property
 
 
@@ -189,7 +191,7 @@ class Field:
         self.verbose_name = verbose_name
         self.column = col
         self.value_path = path
-        self.format = preformat if callable(preformat) else (lambda a, b: a)
+        self.format = preformat
         self.default = default
         self.is_object = False
         self.inline = True
@@ -201,19 +203,37 @@ class Field:
 
     def __repr__(self):
         return str(self)
+
+    def __call__(self, value, dg: DataGetter):
+        """
+        Formats value.
+        :param value:
+        :return:
+        """
+        if self.format is None:
+            return value
+
+        if isinstance(self.format, collections.Iterable):
+            for formatter in self.format:
+                value = formatter(value, dg)
+            return value
+
+        if callable(self.format):
+            return self.format(value, dg)
+
+        raise TypeError('{self.verbose_name} should be callable or list of callable'.format(self=self))
         
-    def render(self, dg):
+    def render(self, dg: DataGetter):
         """
         :param DataGetter dg: 
         :return: 
         """
-        
         # Get field value
         value = self._get_field_value(dg)
         
         return value
 
-    def _get_field_value(self, dg):
+    def _get_field_value(self, dg: DataGetter):
         """
         Returns field value depending on value path and format callback.
         :param dg:
@@ -222,7 +242,7 @@ class Field:
         if not self.value_path:
             return self.verbose_name
 
-        return self.format(dg.get(self.value_path, self.default), dg)
+        return self(dg.get(self.value_path, self.default), dg)
 
 
 class Object:
