@@ -1,4 +1,11 @@
-from . import template as tpl
+import collections
+
+import schematics
+
+from export_util import (
+    template as tpl,
+    value as val
+)
 
 
 class Normalizer:
@@ -219,20 +226,208 @@ class Normalizer:
     is the whole object `DataGetter`. So you can compute any difficult values which are depends on other object values.
 
     """
-    def __init__(self, template, *args, **kwargs):
+    def __init__(self, template: tpl.Object, *args, **kwargs):
         """
-        :param tpl.Object template:
+        Create normalizer instance.
         """
         self.template = template
 
     def build_table(self, obj):
         """
-        Returns N rows which are representing this object due to provided
+        Returns N rows which are representing this object due to provided.
         template.
-        :param obj:
-        :return:
         """
         yield from self.template.render(obj)
 
 
-__all__ = ['Normalizer']
+class SchematicsNormalizer(Normalizer):
+    """
+    Creates object template from the schematics model.
+    """
+    root_object_options = dict(
+        col=1,
+        titles=True,
+        fold_nested=True,
+    )
+
+    nested_object_options = dict(
+        titles=True,
+        inline=True,
+        fold_nested=True,
+    )
+
+    def __init__(self, model: schematics.Model, *args, **kwargs):
+        """
+        Create objects template from schematics model.
+        """
+        super(SchematicsNormalizer, self).__init__(self._build_template(model), *args, **kwargs)
+
+    def _build_template(self, model: schematics.Model, **kwargs) -> tpl.Object:
+        """
+        Creates object template from model.
+        """
+        template = tpl.Object(**(kwargs or self.root_object_options))
+
+        for field, preformat in self._get_model_renderable_fields(model):
+            options = {}
+            if preformat is not None:
+                options['preformat'] = preformat
+
+            template.add_field(
+                field=self._create_field_template(
+                    field=field,
+                    parent=kwargs.get('parent'),
+                    previous=template.fields[-1] if template.fields else None,
+                    **options
+                )
+            )
+
+        return template
+
+    def _create_field_template(self, field: schematics.types.BaseType, parent=None, previous=None, **kwargs):
+        if isinstance(field, schematics.types.ListType) and not kwargs.get('preformat'):
+            return self._type_list_related_field(field, parent, previous, **kwargs)
+
+        if isinstance(field, schematics.types.ModelType) and not kwargs.get('preformat'):
+            return self._type_related_field(field, parent, previous, **kwargs)
+
+        return self._type_base_field(field, parent, previous, **kwargs)
+
+    def _type_base_field(self, field: schematics.types.BaseType, parent=None, previous=None, **kwargs):
+        if 'col' in kwargs:
+            column = kwargs.pop('col')
+        else:
+            column = self._get_next_column_number(previous)
+
+        preformat = None
+        if 'preformat' in kwargs:
+            preformat = kwargs.pop('preformat')
+        if preformat is None:
+            preformat = val.any_to_string
+
+        return tpl.Field(
+            col=column,
+            path=self._get_field_path(parent, field.name),
+            preformat=preformat,
+            verbose_name=self._get_field_verbose_name(field),
+            **kwargs
+        )
+
+    def _type_list_related_field(self, field: schematics.types.BaseType, parent=None, previous=None, **kwargs):
+        if hasattr(field, 'model_class'):
+            return self._type_related_field(field, parent, previous, **kwargs)
+
+        if 'col' in kwargs:
+            column = kwargs.pop('col')
+        else:
+            column = self._get_next_column_number(previous)
+
+        preformat = None
+        if 'preformat' in kwargs:
+            preformat = kwargs.pop('preformat')
+        if preformat is None:
+            preformat = val.any_to_string
+
+        return self._type_base_field(
+            col=column,
+            field=field,
+            parent=parent,
+            previous=previous,
+            preformat=preformat,
+            **kwargs
+        )
+
+    def _type_related_field(self, field: schematics.types.BaseType, parent=None, previous=None, **kwargs):
+        options = kwargs or self._get_model_template_options(field.model_class)
+
+        if 'col' in options:
+            column = options.pop('col')
+        else:
+            column = self._get_next_column_number(previous)
+
+        return self._build_template(
+            col=column,
+            path=self._get_field_path(parent, field.name),
+            model=field.model_class,
+            parent=parent,
+            verbose_name=self._get_field_verbose_name(field),
+            **options
+        )
+
+    def _get_model_template_options(self, model) -> dict:
+        o = self.nested_object_options.copy()
+        o.update({
+            k: v for k, v in model._options
+            if k in tpl.Object.supported_options and v is not None
+        })
+        return dict(filter(lambda x: x[1] is not None, o.items()))
+
+    def _get_model_renderable_fields(self, model: schematics.models.Model):
+        if 'fields' in dict(model._options) and model._options.fields is not None:
+            for field_name in model._options.fields:
+                # Get model field
+                if field_name in model.fields:
+                    yield model.fields[field_name], self._get_model_preformat_field(model, field_name)
+                    continue
+
+                # Get custom report field
+                getter = f'get_{field_name}'
+                if not hasattr(model, getter):
+                    raise NotImplementedError(f'{model.__name__}.{getter} is not implemented')
+
+                getter = getattr(model, getter)
+                getter.name = field_name
+                getter.serialized_name = field_name.replace('_', ' ').capitalize()
+
+                # Define preformatters and prepend getter
+                preformatters = self._get_model_preformat_field(model, field_name)
+                if not preformatters:
+                    preformatters = [getter]
+                elif isinstance(preformatters, collections.Iterable):
+                    preformatters = [getter] + list(preformatters)
+                elif callable(preformatters):
+                    preformatters = [getter, preformatters]
+                yield getter, preformatters
+            return
+
+        yield from (
+            (v, self._get_model_preformat_field(model, k))
+            for k, v in model.fields.items()
+        )
+
+    def _get_model_preformat_field(self, model: schematics.models.Model, field_name):
+        if 'preformat' in dict(model._options) and model._options.preformat is not None:
+            source_formatters = model._options.preformat.get(field_name)
+            if callable(source_formatters) or not source_formatters:
+                return source_formatters
+
+            callable_formatters = []
+            if isinstance(source_formatters, collections.Iterable):
+                for formatter in source_formatters:
+                    if isinstance(formatter, str):
+                        callable_formatters.append(getattr(model, formatter))
+                    elif callable(formatter):
+                        callable_formatters.append(formatter)
+                    else:
+                        raise TypeError(f'{field_name} formatter must be callable or iterable of callable')
+                return callable_formatters
+
+        return None
+
+    def _get_next_column_number(self, previous_field=None):
+        if previous_field is None:
+            return 1
+
+        return previous_field.column + previous_field.length
+
+    def _get_field_verbose_name(self, field):
+        return field.serialized_name or field.name.capitalize()
+
+    def _get_field_path(self, parent, field_name):
+        return '.'.join([parent or '', field_name]).strip('.')
+
+
+__all__ = [
+    'Normalizer',
+    'SchematicsNormalizer',
+]

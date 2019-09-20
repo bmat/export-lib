@@ -343,3 +343,249 @@ other properties which are allows to specify how they should looks like in a tab
 
     *Preformat* argument is a function which takes two arguments. First - os the this column value, and the Second
     is the whole object `DataGetter`. So you can compute any difficult values which are depends on other object values.
+
+
+export_util.normalize.SchematicsNormalizer()
+--------------------------------------------
+
+Allows to build rendering template automatically from the existing `schematics` model.
+
+**Example**:
+
+    class Track(schematics.Model):
+        ...
+    
+    tracks = [Track(...), ...]
+
+    ex = Exporter(
+        normalizer=normalize.SchematicsNormalizer(Track),
+        output=writer.XLSXBytesOutputWriter()
+    )
+
+    filename, mime, xls_data = ex.generate(tracks, "report")
+    with open(f'{filename}.xlsx', 'wb') as f:
+        f.write(xls_data)
+
+
+Extended schematics exporting
+-----------------------------
+
+As it's a report, you may want to convert some fields values to readable format. Export library already has some basic
+implemented formatters in `export_util.value` package. These basic formatters allows to convert some complex values into
+more simple ones.
+
+But how to configure these formatters for the specific fields? For this reason, `export_util.utility` has extended
+metaclass for schematics models `export_util.utility.ExportableModelMeta`. It's optional to use, but if you want to
+preformat some fields, this is the required case.
+
+**To get extended exporter functionality - use ExportableModelMeta class as metaclass**:
+
+    from schematics.models import metaclass
+    from export_util.utility import ExportableModelMeta
+    
+    
+    @metaclass(ExportableModelMeta)
+    class Track(schematics.Model):
+        ...
+
+Any model extended with metaclass `ExportableModelMeta` can be configured as `export_util.template.Object` in `Options`
+subclass. Let's say we have a `Track` model with the `duration` property in seconds and we want to get it converted
+into readable HH:MM:SS format.
+
+
+**Example**:
+
+
+    from schematics import types
+    from schematics.models import metaclass
+    from export_util.utility import ExportableModelMeta
+    from export_util import value
+    
+    
+    @metaclass(ExportableModelMeta)
+    class Track(schematics.Model):
+        duration = types.IntType()
+        
+        class Options:
+            preformat = {
+                'duration': value.seconds_to_time
+            }
+    
+
+Now each track's duration field would be passed to `value.seconds_to_time` function first, before rendering into output.
+
+`Options` subclass takes all the default schematics properties, and also few new properties provided by `ExportableModelMeta`
+class:
+
+|Argument|Required|Default|Comment|
+|---|---|---|---|
+|col|No|---|`int` Column number|
+|fields|No|---|`List[str]` list of fields which are would be rendered.|
+|inline|No|---|`bool` If `True` - renders child objects verbose name in the related cell.|
+|titles|No|---|`bool` Is there should be rendered titles of this table.|
+|title_each|No|---|`bool` If `True` - titles would be rendered for each object row.|
+|offset_top|No|---|`int` How much rows should be kept before rendering table of this objects.|
+|offset_item|No|---|`int` How much rows should be kept before rendering each object in this table.|
+|preformat|No|---|`Dict[str, callable]` or `Dict[str, Iterable[callable]]` Dict of callable formatters for model fields.|
+|fold_nested|No|---|`bool` Folds more than one nested objects into single table instead of "stair" rendering|
+|verbose_name|No|---|`str` Used only for the nested objects rendering. Alternative to `serialized_name`.|
+
+
+Extended schematics exporting: Preformatting
+--------------------------------------------
+
+Nested objects also would be rendered, and theirs `Options` would be used as main options to build a template of nested
+objects block. So let's take a look into another example:
+
+    @metaclass(ExportableModelMeta)
+    class OrderedModel(Model):
+        class Options:
+            export_order = True
+            serialize_when_none = False
+    
+    
+    class Composer(OrderedModel):
+        first_name = types.StringType(serialized_name="First Name")
+        last_name = types.StringType(serialized_name="Last Name")
+        gender = types.StringType(choices=('male', 'female'))
+    
+        class Options:
+            inline = True
+            title_each = False
+            verbose_name = "Composers"
+            preformat = {
+                'gender': lambda x, y: x.capitalize()
+            }
+    
+    
+    class Codes(OrderedModel):
+        isan = types.StringType(serialized_name="ISAN")
+        gema = types.StringType(serialized_name="GEMA")
+    
+        class Options:
+            inline = True
+            title_each = False
+            verbose_name = "Codes"
+    
+    
+    class Track(OrderedModel):
+        name = types.StringType(serialized_name="Name")
+        duration = types.IntType(serialized_name="Length")
+        modes = types.ListType(types.IntType)
+        composers = types.ListType(types.ModelType(Composer))
+        codes = types.ModelType(Codes)
+    
+        class Options:
+            preformat = {
+                'modes': value.list_to_string,
+                'duration': value.seconds_to_time,
+            }
+
+When we will export list of `Track` objects, each `Track.composer.gender` would be passed into `Composer.Options.preformat['gender']`
+function firstly, before rendering into output. We can also describe settings in `Composer.Options` to let exporter
+know, how to render `Track.composers`.
+
+We also can preformat related objects into single row. Let's say, we want to render `Track.composers` in the single cell
+separated by commas:
+
+    class Track(OrderedModel):
+        name = types.StringType(serialized_name="Name")
+        duration = types.IntType(serialized_name="Length")
+        modes = types.ListType(types.IntType)
+        composers = types.ListType(types.ModelType(Composer))
+        codes = types.ModelType(Codes)
+    
+        class Options:
+            preformat = {
+                'modes': value.list_to_string,
+                'duration': value.seconds_to_time,
+                'composers': value.list_dicts_to_string('{first_name} {last_name} ({gender})')
+            }
+
+In this case - `value.list_dicts_to_string` takes format of each `composers` item which are will be concatenated with 
+comma after formatting.
+
+What if it's simple `ModelType` relation and not `ListType`?
+
+
+    class Track(OrderedModel):
+        name = types.StringType(serialized_name="Name")
+        duration = types.IntType(serialized_name="Length")
+        modes = types.ListType(types.IntType)
+        composers = types.ListType(types.ModelType(Composer))
+        codes = types.ModelType(Codes)
+    
+        class Options:
+            preformat = {
+                'modes': value.list_to_string,
+                'duration': value.seconds_to_time,
+                'codes': value.dict_to_string('I:{isan} / G:{gema}')
+            }
+
+For this reason we have `value.dict_to_string` formatter constructor.
+
+Preformat can also take several formatters for every single field. Let's say we must increase duration by `1` and only
+after it, we need to convert it to the readable format.
+
+
+    class Track(OrderedModel):
+        name = types.StringType(serialized_name="Name")
+        duration = types.IntType(serialized_name="Length")
+        modes = types.ListType(types.IntType)
+        composers = types.ListType(types.ModelType(Composer))
+        codes = types.ModelType(Codes)
+    
+        class Options:
+            preformat = {
+                'modes': value.list_to_string,
+                'duration': [lambda a,b: a+1, value.seconds_to_time],
+                'codes': value.dict_to_string('I:{isan} / G:{gema}')
+            }
+            
+Preformat method can also be the `Model` staticmethod member. Simply pass the string name of this member, and schematics 
+normalizer will get it to format value.
+
+    class Track(OrderedModel):
+        name = types.StringType(serialized_name="Name")
+        duration = types.IntType(serialized_name="Length")
+        modes = types.ListType(types.IntType)
+        composers = types.ListType(types.ModelType(Composer))
+        codes = types.ModelType(Codes)
+    
+        class Options:
+            preformat = {
+                'modes': value.list_to_string,
+                'duration': ['increase_duration_by_one', value.seconds_to_time],
+                'codes': value.dict_to_string('I:{isan} / G:{gema}')
+            }
+        
+        @staticmethod
+        def increase_duration_by_one(value, obj: DataGetter):
+            return value + 1
+
+Extended schematics exporting: Custom fields
+--------------------------------------------
+
+Another complex case. Let's say we want to create absolutely new custom field from an existing properties of an object.
+We can provide list of fields which would be rendered at the output in the `Options.fields`. When we declare an field
+which is not exists, schematic normalizer will take a look for gettter staticmethod named `get_{field_name}`. So we can
+do the next:
+
+
+    class User(OrderedModel):
+        first_name = types.StringType(serialized_name="First Name")
+        last_name = types.StringType(serialized_name="Last Name")
+        gender = types.StringType(choices=('male', 'female'))
+        
+        class Options:
+            fields = ('full_name', 'gender')
+         
+        @staticmethod
+        def get_full_name(value, obj: DataGetter):
+            return '{} {}'.format(obj.get('first_name'), obj.get('last_name'))
+
+As you can see `get_full_name` also takes `value` argument which is always `obj.get('field_name')`. In this case it's
+`None`. But you can still use `obj` argument which is `DataGetter` instance of currently rendering object to compose
+any value of the cell.
+
+ 

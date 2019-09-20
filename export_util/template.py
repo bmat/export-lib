@@ -1,3 +1,6 @@
+import collections
+
+from export_util.utility import cached_property
 
 
 class DataGetter:
@@ -188,29 +191,49 @@ class Field:
         self.verbose_name = verbose_name
         self.column = col
         self.value_path = path
-        self.format = preformat if callable(preformat) else lambda a, b: a
+        self.format = preformat
         self.default = default
         self.is_object = False
         self.inline = True
+
+        self.length = 1
 
     def __str__(self):
         return 'Field("{}", val="{}")'.format(self.verbose_name, self.value_path)
 
     def __repr__(self):
         return str(self)
+
+    def __call__(self, value, dg: DataGetter):
+        """
+        Formats value.
+        :param value:
+        :return:
+        """
+        if self.format is None:
+            return value
+
+        if isinstance(self.format, collections.Iterable):
+            for formatter in self.format:
+                value = formatter(value, dg)
+            return value
+
+        if callable(self.format):
+            return self.format(value, dg)
+
+        raise TypeError('{self.verbose_name} should be callable or list of callable'.format(self=self))
         
-    def render(self, dg):
+    def render(self, dg: DataGetter):
         """
         :param DataGetter dg: 
         :return: 
         """
-        
         # Get field value
         value = self._get_field_value(dg)
         
         return value
 
-    def _get_field_value(self, dg):
+    def _get_field_value(self, dg: DataGetter):
         """
         Returns field value depending on value path and format callback.
         :param dg:
@@ -219,15 +242,21 @@ class Field:
         if not self.value_path:
             return self.verbose_name
 
-        return self.format(dg.get(self.value_path, self.default), dg)
+        return self(dg.get(self.value_path, self.default), dg)
 
 
 class Object:
     """
     This is the object template which is describes how the object should be
-    renderred at the table.
+    rendered at the table.
     """
-    def __init__(self, col, fields, verbose_name=None, path=None, preformat=None, **options):
+    supported_options = {
+        'col', 'fields', 'verbose_name', 'path', 'preformat',
+        'offset_top', 'offset_item', 'titles', 'fold_nested',
+        'inline', 'title_each', 'fields'
+    }
+
+    def __init__(self, col=1, fields=None, verbose_name=None, path=None, preformat=None, **options):
         """
         :param col:
         :param verbose_name:
@@ -236,25 +265,25 @@ class Object:
         :param preformat:
         :param options:
         """
-        self.fields = fields
-        self.verbose_name = verbose_name
         self.column = col
         self.value_path = path
+        self.fields = fields or []
+        self.verbose_name = verbose_name
         self.format = preformat if callable(preformat) else lambda a: a
         self.is_object = True
         
         self.offset_top = 0
-        self._renderred_offset_top = False
+        self._rendered_offset_top = False
         if 'offset_top' in options:
             self.offset_top = int(options.pop('offset_top'))
 
         self.offset_item = 0
-        self._renderred_offset_item = False
+        self._rendered_offset_item = False
         if 'offset_item' in options:
             self.offset_item = int(options.pop('offset_item'))
         
         self.render_titles = False
-        self._renderred_titles = False
+        self._rendered_titles = False
         if 'titles' in options:
             self.render_titles = bool(options.pop('titles'))
 
@@ -275,6 +304,22 @@ class Object:
 
     def __repr__(self):
         return str(self)
+
+    def add_field(self, field: Field):
+        """
+        Adds field.
+        :param field:
+        :return:
+        """
+        self.fields.append(field)
+
+    @property
+    def length(self):
+        """
+        Returns number of columns filled.
+        :return:
+        """
+        return len(self.fields) if self.column > 1 else 0
     
     @property
     def sorted_items(self):
@@ -314,7 +359,7 @@ class Object:
             obj = [obj]
 
         # Render each object
-        self._renderred_titles = False
+        self._rendered_titles = False
         for o in obj:
             for row in self._render(o):
                 yield row
@@ -327,13 +372,13 @@ class Object:
         :return: 
         """
         # Render offset top
-        if self.offset_top > 0 and not self._renderred_offset_top:
-            self._renderred_offset_top = True
+        if self.offset_top > 0 and not self._rendered_offset_top:
+            self._rendered_offset_top = True
             yield from [['']]*self.offset_top
         
         # Render header if needs
-        if self.render_titles and not self._renderred_titles:
-            self._renderred_titles = not self.each_title
+        if self.render_titles and not self._rendered_titles:
+            self._rendered_titles = not self.each_title
             yield self._set_offset_row(self._render_titles())
             
         # Render row
@@ -396,7 +441,7 @@ class Object:
 
     def _render_titles(self):
         """
-        Returns current object fields list.
+        Returns current object fields titles.
         :param: dict obj:
         :return list:
         """

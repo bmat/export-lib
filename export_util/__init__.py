@@ -98,9 +98,8 @@ class Exporter:
         :param data:
         :return generator:
         """
-        for row in data:
-            for r in self.normal.build_table(row):
-                yield r
+        for row in self.normal.build_table(data):
+            yield row
 
 
 __all__ = ['Exporter']
