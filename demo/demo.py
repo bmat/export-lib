@@ -153,7 +153,7 @@ if __name__ == '__main__':
         })
     )
 
-    with open('demo_result.xlsx', 'wb') as f:
+    with open('demo.xlsx', 'wb') as f:
         data = [json.load(open(os.path.join(RESOURCES, 'input.json'), 'r'))]
         filename, mime, data = ex.generate(data)
         f.write(data)
