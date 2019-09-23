@@ -18,6 +18,7 @@ Template field description.
 |path|No|None|Column value path, separated by dot for nested objects|
 |preformat|No|None|Callable callback to preprocess value before rendering|
 |default|No|'---'|Default field value|
+|translate|No|dict()|Dict of translations to replace child fields names.|
 
 
 
@@ -39,6 +40,7 @@ Template object description.
 |fold_nested|No|False|Folds more than one nested objects into single table instead of "stair" rendering|
 |inline|No|False|If `True` - renders child objects verbose name in the related cell.|
 |title_each|No|False|If `True` - titles would be rendered for each object row.|
+|translate|No|dict()|Dict of translations to replace child fields names.|
 
 
 
