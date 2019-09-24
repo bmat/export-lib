@@ -18,6 +18,7 @@ Template field description.
 |path|No|None|Column value path, separated by dot for nested objects|
 |preformat|No|None|Callable callback to preprocess value before rendering|
 |default|No|'---'|Default field value|
+|translate|No|dict()|Dict of translations to replace child fields names.|
 
 
 
@@ -39,6 +40,7 @@ Template object description.
 |fold_nested|No|False|Folds more than one nested objects into single table instead of "stair" rendering|
 |inline|No|False|If `True` - renders child objects verbose name in the related cell.|
 |title_each|No|False|If `True` - titles would be rendered for each object row.|
+|translate|No|dict()|Dict of translations to replace child fields names.|
 
 
 
@@ -199,6 +201,20 @@ other properties which are allows to specify how they should looks like in a tab
 
                 # If `titles` is True, then all headers of each field will be rendered before objects list.
                 titles=True,
+                
+                # If you want to translate or rename some fields - use `translate` option. Note: 
+                # 1. Keys of this dict would be used as field name and values as a replacement.
+                # 2. Keys are case-sensitive. So the field named `duration` will not be replaced in this example.
+                # 3. Translation dict will be automatically converted to DataGetter object. So you can pass not only
+                #    field names, but path to replacement as of `DataGetter` specification too.
+                translate={
+                    'Duration': 'Length',
+                    'fields': {
+                        'year': {
+                            'title': 'Year
+                        }
+                    }
+                },
 
                 # This is the object fields
                 fields=[
@@ -211,12 +227,17 @@ other properties which are allows to specify how they should looks like in a tab
 
                     # Optional. The third argument is the where values is stored at the object. If you keep it empty -
                     # title will be renderred instead.
+                    # Field title `Duration` will be replaced by `Length` as it's defined above in a `translate` dict.
                     tpl.Field(3, 'Duration', 'cuesheet_start_time.$date', create_duration),
 
                     # Optional. The fourth argument is the callable function which takes field value as the first arg
                     # and the whole object `DataGetter` instance as the second argument. So you can compute absolutely
                     # new value from field value and any amount of other objects values.
                     tpl.Field(4, 'Year', 'updated_at.$date', get_year_from_timestamp),
+                    # Or you can use translatin label instead of simple string for year field, which we have defined
+                    # above:
+                    # tpl.Field(4, 'fields.year.title', 'updated_at.$date', get_year_from_timestamp),
+                    
                     tpl.Field(5, 'Free Music', 'free_music', verbose_boolean),
                     tpl.Field(6, 'Title', 'category.other_production.original_title'),
                     tpl.Field(7, 'Gema AVR', 'cuesheet_progress'),

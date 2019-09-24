@@ -130,7 +130,7 @@ if __name__ == '__main__':
         output=XLSXBytesOutputWriter(template=WriterTemplate)
     )
 
-    with open('demo_result.xlsx', 'wb') as f:
-        data = [json.load(open(os.path.join(RESOURCES, 'input.json'), 'r'))]
+    with open('demo_template.xlsx', 'wb') as f:
+        data = json.load(open(os.path.join(RESOURCES, 'input.json'), 'r'))
         filename, mime, data = ex.generate(data)
         f.write(data)

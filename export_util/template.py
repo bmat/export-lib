@@ -181,14 +181,15 @@ class Field:
     This is the field of the object representation. It's used to understand
     how and where should be renderred provided field.
     """
-    def __init__(self, col, verbose_name, path=None, preformat=None, default='---'):
+    def __init__(self, col, verbose_name, path=None, preformat=None, default='---', translate: DataGetter = None):
         """
         :param col:
         :param verbose_name:
         :param path:
         :param preformat:
+        :param translate:
         """
-        self.verbose_name = verbose_name
+        self._verbose_name = verbose_name
         self.column = col
         self.value_path = path
         self.format = preformat
@@ -197,6 +198,9 @@ class Field:
         self.inline = True
 
         self.length = 1
+
+        self.trans = DataGetter({})
+        self.set_translator(translate)
 
     def __str__(self):
         return 'Field("{}", val="{}")'.format(self.verbose_name, self.value_path)
@@ -222,6 +226,28 @@ class Field:
             return self.format(value, dg)
 
         raise TypeError('{self.verbose_name} should be callable or list of callable'.format(self=self))
+
+    @property
+    def verbose_name(self):
+        """
+        Returns verbose name of a field with the translation
+        if exists.
+        :return:
+        """
+        return self.trans.get(self._verbose_name, self._verbose_name)
+
+    def set_translator(self, translator: DataGetter = None):
+        """
+        Sets translation dictionary.
+        :param translator:
+        :return:
+        """
+        if isinstance(translator, dict):
+            translator = DataGetter(translator)
+        if translator and not isinstance(translator, DataGetter):
+            raise TypeError(f'Expected DataGetter got: {type(translator).__name__}')
+
+        self.trans = translator or DataGetter({})
         
     def render(self, dg: DataGetter):
         """
@@ -230,7 +256,6 @@ class Field:
         """
         # Get field value
         value = self._get_field_value(dg)
-        
         return value
 
     def _get_field_value(self, dg: DataGetter):
@@ -268,10 +293,11 @@ class Object:
         self.column = col
         self.value_path = path
         self.fields = fields or []
-        self.verbose_name = verbose_name
         self.format = preformat if callable(preformat) else lambda a: a
         self.is_object = True
-        
+
+        self._verbose_name = verbose_name
+
         self.offset_top = 0
         self._rendered_offset_top = False
         if 'offset_top' in options:
@@ -299,6 +325,10 @@ class Object:
         if 'title_each' in options:
             self.each_title = bool(options.pop('title_each'))
 
+        self.trans = DataGetter({})
+        if 'translate' in options:
+            self.set_translator(options.pop('translate'))
+
     def __str__(self):
         return 'Object("{}", fields={})'.format(self.verbose_name or 'ROOT', ', '.join([str(x) for x in self.sorted_items]))
 
@@ -311,6 +341,10 @@ class Object:
         :param field:
         :return:
         """
+        # Pass current translator to new child field
+        field.set_translator(self.trans)
+
+        # Add child field
         self.fields.append(field)
 
     @property
@@ -345,6 +379,31 @@ class Object:
         """
         return sorted(filter(lambda y: y.is_object, self.fields), key=lambda x: x.column)
 
+    @property
+    def verbose_name(self):
+        """
+        Returns verbose name of a field with the translation
+        if exists.
+        :return:
+        """
+        return self.trans.get(self._verbose_name, self._verbose_name)
+
+    def set_translator(self, translator: DataGetter = None):
+        """
+        Sets translation dictionary.
+        :param translator:
+        :return:
+        """
+        if isinstance(translator, dict):
+            translator = DataGetter(translator)
+        if translator and not isinstance(translator, DataGetter):
+            raise TypeError(f'Expected DataGetter got: {type(translator).__name__}')
+
+        self.trans = translator or DataGetter({})
+
+        # Pass translator to all nested fields.
+        self._pass_translator()
+
     def render(self, data):
         """
         Renders objects or an single object.
@@ -365,6 +424,14 @@ class Object:
                 yield row
             if self.offset_item > 0:
                 yield self._set_offset_row([''])
+
+    def _pass_translator(self):
+        """
+        Provides translator to all nested fields.
+        :return:
+        """
+        for field in self.fields:
+            field.set_translator(self.trans)
     
     def _render(self, obj):
         """

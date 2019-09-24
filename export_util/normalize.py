@@ -81,6 +81,20 @@ class Normalizer:
                 # If `titles` is True, then all headers of each field will be rendered before objects list.
                 titles=True,
 
+                # If you want to translate or rename some fields - use `translate` option. Note:
+                # 1. Keys of this dict would be used as field name and values as a replacement.
+                # 2. Keys are case-sensitive. So the field named `duration` will not be replaced in this example.
+                # 3. Translation dict will be automatically converted to DataGetter object. So you can pass not only
+                #    field names, but path to replacement as of `DataGetter` specification too.
+                translate={
+                    'Duration': 'Length',
+                    'fields': {
+                        'year': {
+                            'title': 'Year
+                        }
+                    }
+                },
+
                 # This is the object fields
                 fields=[
                     # Required. First argument of the Field object is the column number. It's related to parent Object
@@ -260,13 +274,16 @@ class SchematicsNormalizer(Normalizer):
         """
         Create objects template from schematics model.
         """
-        super(SchematicsNormalizer, self).__init__(self._build_template(model), *args, **kwargs)
+        template = self._build_template(model, **kwargs)
+        super(SchematicsNormalizer, self).__init__(template, *args, **kwargs)
 
     def _build_template(self, model: schematics.Model, **kwargs) -> tpl.Object:
         """
         Creates object template from model.
         """
-        template = tpl.Object(**(kwargs or self.root_object_options))
+        template_options = self.root_object_options
+        template_options.update(kwargs)
+        template = tpl.Object(**template_options)
 
         for field, preformat in self._get_model_renderable_fields(model):
             options = {}
@@ -376,8 +393,7 @@ class SchematicsNormalizer(Normalizer):
                     raise NotImplementedError(f'{model.__name__}.{getter} is not implemented')
 
                 getter = getattr(model, getter)
-                getter.name = field_name
-                getter.serialized_name = field_name.replace('_', ' ').capitalize()
+                getter.name = getter.serialized_name = field_name
 
                 # Define preformatters and prepend getter
                 preformatters = self._get_model_preformat_field(model, field_name)
@@ -421,7 +437,7 @@ class SchematicsNormalizer(Normalizer):
         return previous_field.column + previous_field.length
 
     def _get_field_verbose_name(self, field):
-        return field.serialized_name or field.name.capitalize()
+        return field.serialized_name or field.name
 
     def _get_field_path(self, parent, field_name):
         return '.'.join([parent or '', field_name]).strip('.')
