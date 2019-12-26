@@ -12,7 +12,7 @@ class OrderedModel(Model):
 
 class Composer(OrderedModel):
     first_name = types.StringType(serialized_name="First Name")
-    last_name = types.StringType(serialized_name="Last Name")
+    last_name = types.StringType()
 
 
 class Codes(OrderedModel):
@@ -65,10 +65,24 @@ if __name__ == '__main__':
     ]
 
     ex = Exporter(
-        normalizer=normalize.SchematicsNormalizer(Track),
+        normalizer=normalize.SchematicsNormalizer(
+            model=Track,
+            translate={
+                # If the field has `serialized_name` provided in a
+                # model property, it must be used as a key to rename
+                # it.
+                'Name': 'Track Name Renamed',
+                'First Name': 'First Name',
+
+                # Otherwise - use the property name as a key. So we can
+                # use `last_name` key to override this field name in
+                # a result table.
+                'last_name': 'Last Name',
+            }
+        ),
         output=writer.XLSXBytesOutputWriter()
     )
 
     filename, mime, xls_data = ex.generate(tracks, "metadata")
-    with open('s.xlsx', 'wb') as f:
+    with open('demo_schematics.xlsx', 'wb') as f:
         f.write(xls_data)

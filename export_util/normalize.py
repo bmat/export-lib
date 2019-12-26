@@ -82,6 +82,20 @@ class Normalizer:
                 # If `titles` is True, then all headers of each field will be rendered before objects list.
                 titles=True,
 
+                # If you want to translate or rename some fields - use `translate` option. Note:
+                # 1. Keys of this dict would be used as field name and values as a replacement.
+                # 2. Keys are case-sensitive. So the field named `duration` will not be replaced in this example.
+                # 3. Translation dict will be automatically converted to DataGetter object. So you can pass not only
+                #    field names, but path to replacement as of `DataGetter` specification too.
+                translate={
+                    'Duration': 'Length',
+                    'fields': {
+                        'year': {
+                            'title': 'Year
+                        }
+                    }
+                },
+
                 # This is the object fields
                 fields=[
                     # Required. First argument of the Field object is the column number. It's related to parent Object
