@@ -26,12 +26,31 @@ def any_to_string(value, obj: DataGetter = None):
     return str(value)
 
 
+def string_to_any(value):
+    """
+    Evaluates expression and returns data.
+    :param value:
+    :return:
+    """
+    return eval(value)
+
+
 def seconds_to_time(seconds, obj: DataGetter = None):
     """
     This function formats seconds into readable 00:00:00
     view.
     """
     return time.strftime('%H:%M:%S', time.gmtime(seconds))
+
+
+def time_to_seconds(time_str):
+    """
+    Calculates amount of seconds.
+    :param time_str:
+    :return:
+    """
+    h, m, s = tuple(time_str.split(':'))
+    return sum([int(h) * 3600, int(m) * 60, int(s)])
 
 
 def seconds_to_year(seconds, obj: DataGetter = None):

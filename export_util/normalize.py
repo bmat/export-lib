@@ -2,6 +2,7 @@ import collections
 
 import schematics
 
+from export_util.utility.misc import NestedDict
 from export_util import (
     template as tpl,
     value as val
@@ -260,13 +261,16 @@ class SchematicsNormalizer(Normalizer):
         """
         Create objects template from schematics model.
         """
-        super(SchematicsNormalizer, self).__init__(self._build_template(model), *args, **kwargs)
+        template = self._build_template(model, **kwargs)
+        super(SchematicsNormalizer, self).__init__(template, *args, **kwargs)
 
     def _build_template(self, model: schematics.Model, **kwargs) -> tpl.Object:
         """
         Creates object template from model.
         """
-        template = tpl.Object(**(kwargs or self.root_object_options))
+        template_options = self.root_object_options
+        template_options.update(kwargs)
+        template = tpl.Object(**template_options)
 
         for field, preformat in self._get_model_renderable_fields(model):
             options = {}
@@ -378,6 +382,7 @@ class SchematicsNormalizer(Normalizer):
                 getter = getattr(model, getter)
                 getter.name = field_name
                 getter.serialized_name = field_name.replace('_', ' ').capitalize()
+                getter.name = getter.serialized_name = field_name
 
                 # Define preformatters and prepend getter
                 preformatters = self._get_model_preformat_field(model, field_name)
@@ -421,13 +426,139 @@ class SchematicsNormalizer(Normalizer):
         return previous_field.column + previous_field.length
 
     def _get_field_verbose_name(self, field):
-        return field.serialized_name or field.name.capitalize()
+        return field.serialized_name or field.name
 
     def _get_field_path(self, parent, field_name):
         return '.'.join([parent or '', field_name]).strip('.')
 
 
+class ParseNormalizer(SchematicsNormalizer):
+    def _create_map(self):
+        """
+        Creates map to read matrix.
+        :return:
+        """
+
+    def read(self, matrix):
+        """
+        Reads list[shape(N, N)] using builded map.
+        :param matrix:
+        :return:
+        """
+        raise NotImplementedError()
+
+
+class SchematicsParseNormalizer(ParseNormalizer):
+    """
+    Parse normalizer allows to read exported schematics document.
+
+    Example:
+
+         >> im = Importer(normalize.SchematicsParseNormalizer(Track))
+         >> im.parse('doc.xlsx')
+         >>
+         [
+             {
+                'name': 'First Track',
+                'duration': 44,
+                'modes': [1, 2, 3],
+                'composers': [<Composer instance>, <Composer instance>],
+                'codes': <Codes instance>
+             },
+             {
+                'name': 'Second Track',
+                'duration': 21,
+                'modes': [2, 3, 4],
+                'composers': [<Composer instance>, <Composer instance>],
+                'codes': <Codes instance>
+             }
+         ]
+
+
+    """
+    def __init__(self, model: schematics.Model, *args, **kwargs):
+        """
+        Create objects template from schematics model.
+        """
+        self.model = model
+        super(SchematicsParseNormalizer, self).__init__(model, *args, **kwargs)
+
+    def read(self, matrix):
+        # Building parse map
+        pmap = NestedDict()
+        for field in self.template.fields:
+            pmap.update(self.parse_field(field, matrix))
+        return pmap
+
+    def parse_field(self, field, matrix):
+        if hasattr(field, 'fields'):
+            if self.model.fields[field.value_path].primitive_type == list:
+                return self.parse_list_related_field(
+                    field=field,
+                    matrix=self._crop_matrix(matrix, field.column-1, 0, field.length)
+                )
+
+            if self.model.fields[field.value_path].primitive_type == dict:
+                return self.parse_related_field(
+                    field=field,
+                    matrix=self._crop_matrix(matrix, field.column-1, 0, field.length)
+                )
+
+        return self.parse_normal_field(field, matrix)
+
+    def parse_normal_field(self, field, matrix):
+        matrix = self._crop_titles(matrix)
+        value = matrix[0][field.column-1]
+        return {field.value_path: self._get_model_normal_field(field, value)}
+
+    def parse_list_related_field(self, field, matrix):
+        matrix = self._crop_titles(matrix, field)
+
+        data = []
+        for row in matrix:
+            obj = NestedDict()
+            for nested in field.fields:
+                obj[nested.value_path] = self._get_model_normal_field(nested, row[nested.column-1])
+            data.append(obj)
+        return {field.value_path: data}
+
+    def parse_related_field(self, field, matrix):
+        matrix = self._crop_titles(matrix, field)
+
+        data = []
+        for row in matrix:
+            obj = NestedDict()
+            for nested in field.fields:
+                obj[nested.value_path] = self._get_model_normal_field(nested, row[nested.column-1])
+            data.append(obj)
+
+        return {field.value_path: data[0]}
+
+    def _get_model_normal_field(self, field, value):
+        if 'normalize' in dict(self.model._options) and self.model._options.normalize is not None:
+            normalizer = self.model._options.normalize.get(field.value_path)
+            if callable(normalizer):
+                return normalizer(value)
+            return value
+
+    def _crop_titles(self, matrix, field=None):
+        if self.template.render_titles:
+            matrix = self._crop_matrix(matrix, 0, 1)
+        if field and self.template.inline:
+            matrix = self._crop_matrix(matrix, 0, 1)
+        if field and hasattr(field, 'render_titles') and field.render_titles:
+            matrix = self._crop_matrix(matrix, 0, 1)
+        return matrix
+
+    def _crop_matrix(self, matrix, x, y, width=None, height=None):
+        result = []
+        for row in matrix[y:y+height if height else None]:
+            result.append(row[x:x+width if width else None])
+        return result
+
+
 __all__ = [
     'Normalizer',
     'SchematicsNormalizer',
+    'SchematicsParseNormalizer',
 ]

@@ -9,7 +9,7 @@ class ExportLibSchemaOptions(schema.SchemaOptions):
                  serialize_when_none=None, export_order=False, fields=None,
                  verbose_name=None, preformat=None, offset_top=None, inline=None,
                  offset_item=None, titles=None, fold_nested=None, title_each=None,
-                 extras=None):
+                 extras=None, normalize=None):
         super(ExportLibSchemaOptions, self).__init__(namespace, roles, export_level, serialize_when_none, export_order,
                                                      extras)
 
@@ -25,6 +25,8 @@ class ExportLibSchemaOptions(schema.SchemaOptions):
         self.inline = inline
         self.fold_nested = fold_nested
         self.verbose_name = verbose_name
+
+        self.normalize = normalize
 
 
 class ExportableModelMeta(models.ModelMeta):
