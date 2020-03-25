@@ -1,4 +1,5 @@
-from io import BytesIO
+import csv
+from io import BytesIO, StringIO
 from zipfile import ZipFile, ZIP_DEFLATED
 
 import openpyxl
@@ -163,8 +164,38 @@ class XLSXBytesOutputWriter(BytesOutputWriter):
         return cell_name[0]
 
 
+class CSVBytesOutputWriter(BytesOutputWriter):
+    """
+    CSV Data Writer.
+    """
+    mime_type = 'text/csv'
+    extension = 'csv'
+
+    def __init__(self, delimiter=';', template=None):
+        super(CSVBytesOutputWriter, self).__init__()
+
+        self.output = StringIO()
+        self.writer = csv.writer(self.output, delimiter=delimiter)
+
+        if template is not None:
+            if template.template_file is not None:
+                with open(template.template_file, 'r') as feed:
+                    reader = csv.reader(feed, delimiter=delimiter)
+                    for row in reader:
+                        self.write(*row)
+                feed.close()
+
+
+    def write(self, *cols):
+        self.writer.writerow([x for x in cols])
+
+    def get_data(self):
+        return self.output.getvalue()
+
+
 __all__ = [
     'OutputTemplate',
     'BytesOutputWriter',
+    'CSVBytesOutputWriter',
     'XLSXBytesOutputWriter'
 ]
