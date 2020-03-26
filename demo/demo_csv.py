@@ -128,7 +128,7 @@ if __name__ == '__main__':
         output=CSVBytesOutputWriter(template=WriterTemplate)
     )
 
-    with open('demo_result.csv', 'w') as f:
+    with open('demo_template_csv.csv', 'w') as f:
         data = json.load(open(os.path.join(RESOURCES, 'input.json'), 'r'))
         filename, mime, data = ex.generate(data)
         f.write(data)
