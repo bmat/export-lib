@@ -1,3 +1,4 @@
+from reportlab.lib.pagesizes import landscape, A4
 from schematics import Model, types, models
 
 from export_util import normalize, writer, Exporter, utility
@@ -80,7 +81,7 @@ if __name__ == '__main__':
                 'last_name': 'Last Name',
             }
         ),
-        output=writer.PDFBytesOutputWriter(offsets=[0, 100, 150, 200, 320, 420, 500, 600])
+        output=writer.PDFBytesOutputWriter(offsets=[0, 100, 150, 200, 320, 420, 500, 600], pagesize=landscape(A4))
     )
 
     filename, mime, pdf_data = ex.generate(tracks, "metadata")

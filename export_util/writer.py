@@ -210,22 +210,30 @@ class PDFBytesOutputWriter(BytesOutputWriter):
         args = [iter(iterable)] * n
         return itertools.zip_longest(*args)
 
-    def __init__(self, offsets):
+    def __init__(self, offsets, pagesize, header=None):
         super(PDFBytesOutputWriter, self).__init__()
 
         self.output = BytesIO()
-        self.writer = canvas.Canvas(self.output, pagesize=landscape(A4))
+        self.writer = canvas.Canvas(self.output)
 
         self.offsets = offsets
-        self.data = []
+        if header:
+            self.data = header
+        else:
+            self.data = []
+
+        self.w = pagesize[0]
+        self.h = pagesize[1]
 
     def write(self, *cols):
-        print(cols)
         self.data.append(cols)
 
 
     def get_data(self):
-        w, h = landscape(A4)
+        # Page size
+        w = self.w
+        h = self.h
+
         max_rows_per_page = 45
         # Margin.
         x_offset = 50
@@ -242,6 +250,7 @@ class PDFBytesOutputWriter(BytesOutputWriter):
             for y, row in zip(ylist[:-1], rows):
                 for x, cell in zip(xlist, row):
                     self.writer.drawString(x + 2, y - padding + 3, str(cell))
+            self.writer.setPageSize((w, h))
             self.writer.showPage()
 
         self.writer.save()
