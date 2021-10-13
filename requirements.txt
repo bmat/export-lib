@@ -1,2 +1,5 @@
 openpyxl==2.6.2
 schematics==2.1.0
+
+# Pdf
+reportlab==3.5.42
