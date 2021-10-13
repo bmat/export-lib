@@ -52,6 +52,6 @@ if __name__ == '__main__':
         )
     )
 
-    objects = im.parse('demo_schematics_import.xlsx')
+    objects = im.parse('demo/demo_schematics_import.xlsx')
     for o in objects:
         print(value.schema_model_to_dict(o))
