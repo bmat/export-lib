@@ -102,4 +102,63 @@ class Exporter:
             yield row
 
 
-__all__ = ['Exporter']
+class Importer:
+    """
+    Import data utility.
+
+
+    """
+    def __init__(self, normalizer):
+        """
+        :param export_util.normalize.ParseNormalizer normalizer:
+        """
+        self.normal = normalizer
+
+    def parse(self, filename):
+        """
+        Parsing matrix and normalize it using normalizer.
+        :param filename:
+        :return:
+        """
+        for matrix in self._parse_matrix(filename):
+            yield self.normal.model(self.normal.read(matrix))
+
+    def _parse_matrix(self, filename):
+        """
+        Parser should separate objects and yield each of them
+        separately to be able to normalize output.
+
+        Each object should contain headers like it's a single
+        object for whole document.
+        :param filename:
+        :return:
+        """
+        from openpyxl import load_workbook
+        wb = load_workbook(filename=filename)
+        sheet = wb.active
+
+        matrix = []
+        headers = None
+        for i, row in enumerate(sheet.rows):
+            rowdata = list(map(lambda x: x.value, row))
+
+            if i == 0:
+                headers = rowdata
+                continue
+
+            if not len(matrix):
+                matrix.append(rowdata)
+                continue
+
+            if not rowdata[0]:
+                matrix.append(rowdata)
+                continue
+
+            yield [headers] + matrix
+            matrix = [rowdata]
+
+        if matrix:
+            yield [headers] + matrix
+
+
+__all__ = ['Exporter', 'Importer']
